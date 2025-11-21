@@ -1,0 +1,278 @@
+PREGUNTAS TÉCNICAS SOBRE EL SISTEMA TSP
+
+================================================================================
+1. ¿Dónde se encuentran los diferentes tipos de comunicación?
+================================================================================
+
+Los diferentes tipos de comunicación MPI se encuentran en el archivo:
+models/mpi_handler.py
+
+El sistema utiliza 4 tipos de comunicación identificados por tags MPI:
+
+a) TAG 100 - Distribución de Matriz de Distancias
+   - Ubicación: Líneas 44-55 en mpi_handler.py
+   - Función: send_matrix_to_slaves()
+   - Descripción: El proceso maestro envía la matriz de distancias completa a 
+     todos los procesos esclavos al inicio de la ejecución. Esto permite que 
+     cada esclavo tenga acceso a toda la información necesaria para evaluar 
+     individuos sin necesidad de consultar al maestro.
+
+b) TAG 1 - Envío de Tareas (Individuos a Evaluar)
+   - Ubicación: Líneas 96-121 en mpi_handler.py (función mpi_map)
+   - Descripción: El maestro envía individuos (rutas) a los esclavos para que 
+     sean evaluados. Cada tarea incluye un índice y el individuo a procesar.
+     También se usa para enviar señal de fin de lote (-1, None).
+
+c) TAG 2 - Recepción de Resultados
+   - Ubicación: Líneas 104-111 y 159 en mpi_handler.py
+   - Descripción: Los esclavos envían de vuelta al maestro los resultados de 
+     la evaluación. Cada resultado incluye el índice de la tarea y la distancia 
+     calculada.
+
+d) TAG 99 - Señal de Terminación
+   - Ubicación: Líneas 171-181 en mpi_handler.py
+   - Función: send_termination_signal()
+   - Descripción: El maestro envía una señal de terminación a todos los 
+     esclavos cuando la ejecución del algoritmo genético ha finalizado, 
+     indicándoles que deben salir de su bucle de procesamiento.
+
+Flujo de Comunicación:
+- El maestro distribuye tareas de forma dinámica: cuando un esclavo termina 
+  una tarea, recibe inmediatamente una nueva si hay más disponibles.
+- Los esclavos procesan tareas en paralelo, mejorando significativamente el 
+  rendimiento del algoritmo.
+
+================================================================================
+2. ¿Cómo se guarda la información en la base de datos?
+================================================================================
+
+El guardado de información se realiza en el archivo:
+models/database.py
+
+Proceso de Guardado:
+
+a) Inicialización (Líneas 26-41):
+   - El DatabaseManager se inicializa con la configuración de BD desde 
+     config/config.py
+   - Se intenta conectar al módulo Core.db que contiene las funciones de 
+     acceso a MySQL
+   - Si Core.db no está disponible, el sistema funciona sin base de datos
+
+b) Guardado de Ejecución (Líneas 43-75):
+   - Función: save_execution(best_route, best_distance, parameters)
+   - Parámetros guardados:
+     * best_route: La mejor ruta encontrada (lista de ciudades)
+     * best_distance: La mejor distancia calculada
+     * parameters: Diccionario con parámetros de la ejecución:
+       - pop_size: Tamaño de población
+       - crossover_rate: Tasa de cruce
+       - mutation_rate: Tasa de mutación
+       - num_generations: Número de generaciones
+       - num_cities: Número de ciudades
+
+c) Estructura de Datos:
+   - Se crea un diccionario "mejor_individuo" con:
+     {
+         "ruta": best_route,
+         "distancia": best_distance
+     }
+   - Se llama a guardar_resultado() del módulo Core.db que realiza la 
+     inserción en MySQL
+   - Se retorna un ID de ejecución único
+
+d) Ubicación de la Llamada:
+   - El guardado se invoca desde controllers/app_controller.py (líneas 148-156)
+   - Se ejecuta automáticamente después de que el algoritmo genético 
+     completa su ejecución
+   - Solo se guarda si la base de datos está disponible
+
+e) Configuración de Base de Datos:
+   - Archivo: config/config.py (líneas 7-13)
+   - Parámetros configurables mediante variables de entorno:
+     * DB_HOST: localhost (por defecto)
+     * DB_USER: aguser (por defecto)
+     * DB_PASSWORD: password123 (por defecto)
+     * DB_NAME: base_de_datos_replicacion (por defecto)
+     * DB_PORT: 3306 (por defecto)
+
+================================================================================
+3. ¿Cómo se replica el algoritmo genético?
+================================================================================
+
+La replicación/distribución del algoritmo genético se realiza mediante MPI en:
+models/mpi_handler.py (función create_mpi_map, líneas 57-169)
+models/genetic_algorithm.py (líneas 68-71, 120, 157)
+
+Mecanismo de Replicación:
+
+a) Creación del Mapper MPI:
+   - El controlador crea un mapper personalizado llamando a 
+     mpi_handler.create_mpi_map(dist_matrix)
+   - Este mapper reemplaza la función map() estándar de Python
+   - Se registra en el toolbox de DEAP: toolbox.register("map", mpi_map)
+
+b) Distribución de Evaluación:
+   - El algoritmo genético evalúa la población usando: 
+     toolbox.map(toolbox.evaluate, population)
+   - En lugar de evaluar secuencialmente, el mapper MPI distribuye las 
+     evaluaciones entre múltiples procesos
+
+c) Proceso Maestro (Rank 0):
+   - Divide la población en tareas individuales
+   - Envía cada individuo a un esclavo disponible (Tag 1)
+   - Mantiene un registro de qué esclavos están ocupados
+   - Recibe resultados de los esclavos (Tag 2)
+   - Asigna nuevas tareas a esclavos que terminan
+   - Recolecta todos los resultados en el orden correcto
+
+d) Proceso Esclavo (Rank > 0):
+   - Recibe la matriz de distancias del maestro (Tag 100)
+   - Entra en un bucle de procesamiento:
+     * Recibe un individuo del maestro (Tag 1)
+     * Evalúa el individuo calculando la distancia total
+     * Envía el resultado de vuelta al maestro (Tag 2)
+   - Continúa hasta recibir señal de fin de lote (-1, None)
+
+e) Evaluación Local en Esclavos:
+   - Cada esclavo tiene su propia función eval_tsp_local() (líneas 130-135)
+   - Calcula la distancia total del recorrido:
+     * Suma distancias entre ciudades consecutivas
+     * Incluye el regreso a la ciudad inicial
+   - Retorna una tupla con la distancia: (distance,)
+
+f) Ventajas de la Replicación:
+   - Paralelización de la evaluación, que es la operación más costosa
+   - Escalabilidad: más procesos = mayor velocidad
+   - El algoritmo genético en sí (selección, cruce, mutación) se ejecuta 
+     solo en el maestro
+   - Solo la evaluación se distribuye, manteniendo la coherencia del algoritmo
+
+g) Flujo Completo:
+   1. Maestro inicializa población
+   2. Maestro distribuye individuos a esclavos para evaluación
+   3. Esclavos evalúan en paralelo
+   4. Maestro recibe todos los resultados
+   5. Maestro aplica operadores genéticos (selección, cruce, mutación)
+   6. Repite desde el paso 2 para cada generación
+
+================================================================================
+4. ¿Cómo funciona la mutación?
+================================================================================
+
+La mutación se implementa en el archivo:
+models/genetic_algorithm.py
+
+a) Registro del Operador (Línea 63):
+   - Se registra usando DEAP: toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
+   - Operador: mutShuffleIndexes (mutación por intercambio de índices)
+   - Parámetro: indpb=0.05 (probabilidad de mutación por índice = 5%)
+
+b) Aplicación de la Mutación (Líneas 149-153):
+   - Se aplica a cada individuo de la descendencia (offspring)
+   - Probabilidad de mutación: mutation_rate (por defecto 0.1 = 10%)
+   - Si se cumple la probabilidad, se llama a toolbox.mutate(mutant)
+   - Después de mutar, se elimina el fitness del individuo (del mutant.fitness.values)
+     para forzar su re-evaluación
+
+c) Funcionamiento de mutShuffleIndexes:
+   - Este operador intercambia aleatoriamente las posiciones de algunos genes
+   - Para cada posición del individuo, hay una probabilidad indpb (5%) de que 
+     sea intercambiada con otra posición aleatoria
+   - Ejemplo:
+     Individuo original: [0, 1, 2, 3, 4, 5]
+     Después de mutación: [0, 4, 2, 1, 3, 5]
+     (Se intercambiaron las posiciones 1↔4 y 3↔1)
+
+d) Parámetros de Mutación:
+   - mutation_rate: Probabilidad de que un individuo sea mutado (0.1 = 10%)
+   - indpb: Probabilidad de mutación por cada gen/índice (0.05 = 5%)
+   - Configuración por defecto: config/config.py, línea 26
+
+e) Propósito de la Mutación:
+   - Introduce diversidad genética en la población
+   - Previene la convergencia prematura a soluciones subóptimas
+   - Permite explorar nuevas regiones del espacio de búsqueda
+   - Es especialmente importante en TSP para escapar de mínimos locales
+
+f) Flujo en el Algoritmo:
+   1. Se crea la descendencia mediante selección
+   2. Se aplica cruce (crossover) a pares de individuos
+   3. Se aplica mutación a cada individuo (con probabilidad mutation_rate)
+   4. Se re-evalúan los individuos mutados
+   5. Se actualiza la población con la nueva descendencia
+
+g) Características Importantes:
+   - La mutación preserva la validez de la solución (todas las ciudades 
+     aparecen exactamente una vez)
+   - No genera soluciones inválidas
+   - Es un operador de bajo nivel que modifica pequeños cambios en la ruta
+   - El balance entre exploración (mutación) y explotación (selección) es 
+     crucial para el rendimiento del algoritmo
+
+================================================================================
+5. Etiquetas de los Sliders de Recombinación y Mutación
+================================================================================
+
+Las etiquetas de los sliders se encuentran en el archivo:
+views/gui.py
+
+a) Slider de Recombinación (Cruce):
+   - Ubicación de la etiqueta: Línea 99 en gui.py
+   - Texto de la etiqueta: "Prob. Recombinación:"
+   - Variable asociada: crossover_var (tk.DoubleVar)
+   - Valor por defecto: 0.8 (80%)
+   - Rango del slider: 0.0 a 1.0
+   - Tipo de widget: ttk.Scale (slider horizontal)
+   - Longitud del slider: 150 píxeles
+   - Función: Controla la probabilidad de que dos individuos se crucen 
+     durante la reproducción (crossover_rate)
+   - Ubicación en la interfaz: Panel de configuración, sección "Parámetros 
+     del Algoritmo", después del campo "Tamaño de población"
+
+b) Slider de Mutación:
+   - Ubicación de la etiqueta: Línea 107 en gui.py
+   - Texto de la etiqueta: "Prob. Mutación:"
+   - Variable asociada: mutation_var (tk.DoubleVar)
+   - Valor por defecto: 0.1 (10%)
+   - Rango del slider: 0.0 a 1.0
+   - Tipo de widget: ttk.Scale (slider horizontal)
+   - Longitud del slider: 150 píxeles
+   - Función: Controla la probabilidad de que un individuo sea mutado 
+     después del cruce (mutation_rate)
+   - Ubicación en la interfaz: Panel de configuración, sección "Parámetros 
+     del Algoritmo", después del slider de recombinación
+
+c) Configuración de los Sliders:
+   - Ambos sliders están en el panel de configuración (config_frame)
+   - Se encuentran en la sección "Parámetros del Algoritmo" (línea 85)
+   - Están ubicados después del campo "Tamaño de población" (líneas 90-95)
+   - Los valores se obtienen mediante:
+     * crossover_var.get() para recombinación (línea 228)
+     * mutation_var.get() para mutación (línea 229)
+   - Se pasan al controlador en el diccionario de parámetros (líneas 225-231)
+   - Los sliders usan orientación horizontal (orient="horizontal")
+
+d) Uso en la Interfaz:
+   - Los usuarios pueden ajustar estos valores arrastrando el slider
+   - Los valores se muestran en tiempo real mientras se mueve el slider
+   - Los valores se envían al algoritmo genético cuando se presiona 
+     "Ejecutar Algoritmo" (línea 127)
+   - Los valores por defecto coinciden con los de config/config.py:
+     * DEFAULT_CROSSOVER_RATE = 0.8 (línea 25 en config.py)
+     * DEFAULT_MUTATION_RATE = 0.1 (línea 26 en config.py)
+
+e) Código de Implementación:
+   - Slider de Recombinación (líneas 99-103):
+     ttk.Label(parent, text="Prob. Recombinación:").grid(row=row, column=0, sticky="w", pady=5)
+     self.crossover_var = tk.DoubleVar(value=0.8)
+     crossover_scale = ttk.Scale(parent, from_=0.0, to=1.0, orient="horizontal",
+                                 variable=self.crossover_var, length=150)
+     crossover_scale.grid(row=row, column=1, pady=5, sticky="ew")
+   
+   - Slider de Mutación (líneas 107-111):
+     ttk.Label(parent, text="Prob. Mutación:").grid(row=row, column=0, sticky="w", pady=5)
+     self.mutation_var = tk.DoubleVar(value=0.1)
+     mutation_scale = ttk.Scale(parent, from_=0.0, to=1.0, orient="horizontal",
+                                variable=self.mutation_var, length=150)
+     mutation_scale.grid(row=row, column=1, pady=5, sticky="ew")
+

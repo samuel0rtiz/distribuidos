@@ -1,0 +1,711 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+
+% Configuración de página
+\geometry{
+    left=2.5cm,
+    right=2.5cm,
+    top=3cm,
+    bottom=3cm,
+    headheight=15pt
+}
+
+% Colores personalizados
+\definecolor{azuloscuro}{RGB}{30,58,138}
+\definecolor{azulmedio}{RGB}{59,130,246}
+\definecolor{azulclaro}{RGB}{147,197,253}
+\definecolor{verde}{RGB}{16,185,129}
+\definecolor{rojo}{RGB}{239,68,68}
+\definecolor{grisclaro}{RGB}{241,245,249}
+\definecolor{grisoscuro}{RGB}{51,65,85}
+
+% Configuración de código
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{azulmedio}\bfseries,
+    commentstyle=\color{grisoscuro}\itshape,
+    stringstyle=\color{verde},
+    numbers=left,
+    numberstyle=\tiny\color{grisoscuro},
+    stepnumber=1,
+    numbersep=5pt,
+    backgroundcolor=\color{grisclaro},
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    frame=single,
+    rulecolor=\color{azulclaro},
+    tabsize=2,
+    captionpos=b,
+    breaklines=true,
+    breakatwhitespace=false,
+    escapeinside={\%*}{*)}
+}
+
+% Encabezado y pie de página
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{Sistema TSP - Arquitectura MVC}}
+\fancyhead[R]{\today}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{2pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{azuloscuro}\leaders\hrule height \headrulewidth\hfill}}
+
+% Formato de títulos
+\titleformat{\section}
+{\Large\bfseries\color{azuloscuro}}
+{}
+{0em}
+{}[\titlerule[2pt]]
+
+\titleformat{\subsection}
+{\large\bfseries\color{azulmedio}}
+{}
+{0em}
+{}
+
+% Portada
+\title{
+    \vspace{2cm}
+    \Huge\textbf{Documentación Técnica}\\
+    \Large\textbf{Sistema de Algoritmo Genético TSP}\\
+    \Large\textbf{Cluster Beowulf - Arquitectura MVC}\\
+    \vspace{1cm}
+}
+\author{
+    \large Sistema de Computación Distribuida\\
+    \large Arquitectura Modelo-Vista-Controlador\\
+    \large Equipo:\\
+    
+        \large Diego Alarcon De Jesus\\
+        
+        
+    \large Armando Balam Carranza Ortiz\\
+    
+    \large Helen Chavez Neri\\
+    
+    \large Jose Alfredo Dominguez Arista\\
+    
+    \large  David Alejandro Jimenez Valdin\\
+    
+    \large Samuel Jezoar Ortiz Martinez\\
+    
+    \large Andre Samanta Nava Baltasares\\
+    
+
+}
+\date{\vspace{1cm}\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introducción}
+
+Este documento describe la arquitectura y el diseño del Sistema de Algoritmo Genético para resolver el problema del Viajero de Comercio (TSP) distribuido en un Cluster Beowulf usando MPI.
+
+\subsection{Objetivo}
+
+Implementar un sistema limpio, modular y escalable utilizando el patrón de diseño Modelo-Vista-Controlador (MVC) para resolver el TSP mediante algoritmos genéticos distribuidos.
+
+\subsection{Características Principales}
+
+\begin{itemize}
+    \item Arquitectura MVC bien definida y separada
+    \item Soporte para computación distribuida con MPI
+    \item Interfaz gráfica simple y funcional
+    \item Código modular y fácil de mantener
+    \item Documentación completa
+\end{itemize}
+
+\section{Arquitectura del Sistema}
+
+\subsection{Patrón Modelo-Vista-Controlador (MVC)}
+
+El sistema está organizado siguiendo el patrón MVC que separa las responsabilidades en tres capas principales:
+
+\begin{itemize}
+    \item \textbf{Modelo (Models):} Contiene la lógica de negocio y el acceso a datos
+    \item \textbf{Vista (Views):} Maneja la interfaz de usuario y presentación
+    \item \textbf{Controlador (Controllers):} Coordina la comunicación entre modelo y vista
+\end{itemize}
+
+\subsubsection{Relaciones entre Componentes MVC}
+
+La arquitectura MVC establece las siguientes relaciones:
+
+\begin{enumerate}
+    \item \textbf{Controlador $\rightarrow$ Modelo:} El controlador utiliza el modelo para ejecutar operaciones y obtener datos.
+    \item \textbf{Controlador $\rightarrow$ Vista:} El controlador actualiza la vista con los resultados obtenidos del modelo.
+    \item \textbf{Vista $\rightarrow$ Controlador:} La vista envía eventos del usuario al controlador.
+    \item \textbf{Modelo $\rightarrow$ Controlador:} El modelo notifica al controlador cuando hay cambios en los datos (comunicación mediante callbacks).
+\end{enumerate}
+
+Esta separación permite que cada componente tenga responsabilidades claras y bien definidas, facilitando el mantenimiento y la extensión del sistema.
+
+\subsection{Estructura de Directorios}
+
+La estructura del proyecto está organizada de la siguiente manera:
+
+\begin{lstlisting}[caption=Estructura del Proyecto, language=bash]
+bueno/
+├── models/              # Capa de Modelo
+│   ├── __init__.py
+│   ├── genetic_algorithm.py
+│   ├── mpi_handler.py
+│   └── database.py
+├── views/               # Capa de Vista
+│   ├── __init__.py
+│   └── gui.py
+├── controllers/         # Capa de Controlador
+│   ├── __init__.py
+│   └── app_controller.py
+├── utils/               # Utilidades
+│   ├── __init__.py
+│   └── matrix_loader.py
+├── config/              # Configuración
+│   └── config.py
+├── data/                # Datos
+│   └── distancias.json
+├── main.py              # Punto de entrada
+├── requirements.txt     # Dependencias
+├── README.md            # Documentación de usuario
+└── run*.sh              # Scripts de ejecución
+\end{lstlisting}
+
+\section{Capa de Modelo (Models)}
+
+La capa de modelo contiene toda la lógica de negocio y el acceso a datos. Está compuesta por tres módulos principales.
+
+\subsection{GeneticAlgorithmTSP}
+
+El módulo \texttt{genetic\_algorithm.py} implementa el algoritmo genético para resolver el TSP.
+
+\textbf{Responsabilidades:}
+\begin{itemize}
+    \item Inicialización de población
+    \item Aplicación de operadores genéticos (selección, cruce, mutación)
+    \item Evaluación de individuos
+    \item Evolución generacional
+    \item Manejo de estadísticas
+\end{itemize}
+
+\textbf{Clase Principal:}
+
+\begin{lstlisting}[caption=Clase GeneticAlgorithmTSP]
+class GeneticAlgorithmTSP:
+    """Algoritmo Genético para resolver TSP."""
+    
+    def __init__(self, dist_matrix, pop_size, crossover_rate, 
+                 mutation_rate, num_generations, mpi_map=None):
+        # Inicialización del algoritmo
+        
+    def run(self):
+        # Ejecuta el algoritmo y retorna resultados
+        return best_route, best_distance, total_time, stats
+\end{lstlisting}
+
+\textbf{Operadores Genéticos:}
+\begin{itemize}
+    \item \textbf{Selección:} Tournament Selection (tamaño 3)
+    \item \textbf{Cruce:} Ordered Crossover (OX)
+    \item \textbf{Mutación:} Shuffle Indexes Mutation
+    \item \textbf{Evaluación:} Cálculo de distancia total del recorrido
+\end{itemize}
+
+\subsection{MPIHandler}
+
+El módulo \texttt{mpi\_handler.py} maneja toda la comunicación y distribución de tareas usando MPI.
+
+\textbf{Responsabilidades:}
+\begin{itemize}
+    \item Detección de MPI
+    \item Identificación de rol (maestro/esclavo)
+    \item Distribución de matriz de distancias
+    \item Creación de mapper personalizado para MPI
+    \item Comunicación maestro-esclavo
+\end{itemize}
+
+\subsubsection{Flujo de Comunicación MPI}
+
+El sistema utiliza un protocolo de comunicación basado en tags para coordinar la comunicación entre el proceso maestro y los procesos esclavos:
+
+\begin{enumerate}
+    \item \textbf{Tag 100 - Distribución de Matriz:} El maestro envía la matriz de distancias a todos los esclavos al inicio de la ejecución.
+    
+    \item \textbf{Tag 1 - Envío de Tareas:} El maestro envía tareas (individuos a evaluar) a los esclavos disponibles.
+    
+    \item \textbf{Tag 2 - Recepción de Resultados:} Los esclavos envían los resultados de la evaluación de vuelta al maestro.
+    
+    \item \textbf{Tag 99 - Señal de Terminación:} El maestro envía una señal de terminación a todos los esclavos cuando la ejecución finaliza.
+\end{enumerate}
+
+Este protocolo permite una comunicación eficiente y ordenada entre los procesos, distribuyendo la carga de trabajo de evaluación de individuos entre múltiples procesadores.
+
+\subsection{DatabaseManager}
+
+El módulo \texttt{database.py} gestiona todas las operaciones con la base de datos MySQL.
+
+\textbf{Responsabilidades:}
+\begin{itemize}
+    \item Conexión a base de datos
+    \item Guardado de ejecuciones
+    \item Recuperación de historial
+    \item Manejo de errores
+\end{itemize}
+
+\textbf{Operaciones Principales:}
+\begin{itemize}
+    \item \texttt{save\_execution()}: Guarda resultados de una ejecución
+    \item \texttt{get\_history()}: Obtiene historial de ejecuciones
+    \item \texttt{is\_available()}: Verifica disponibilidad de BD
+\end{itemize}
+
+\section{Capa de Vista (Views)}
+
+La capa de vista maneja toda la interfaz de usuario usando tkinter.
+
+\subsection{MainWindow}
+
+El módulo \texttt{gui.py} implementa la ventana principal de la aplicación.
+
+\textbf{Componentes Principales:}
+
+\begin{enumerate}
+    \item \textbf{Panel de Configuración:}
+    \begin{itemize}
+        \item Número de ciudades
+        \item Parámetros del algoritmo
+        \item Botón de ejecución
+        \item Información del cluster
+    \end{itemize}
+    
+    \item \textbf{Panel de Resultados:}
+    \begin{itemize}
+        \item Gráfica de convergencia (Matplotlib)
+        \item Tabla de estadísticas por generación
+        \item Mejor solución encontrada
+        \item Tiempo de ejecución
+        \item Barra de progreso
+    \end{itemize}
+\end{enumerate}
+
+\textbf{Métodos Principales:}
+
+\begin{lstlisting}[caption=Métodos de MainWindow]
+class MainWindow:
+    def __init__(self, root, controller):
+        # Inicialización de la interfaz
+        
+    def update_progress(self, generation, best, worst, avg, std_dev):
+        # Actualiza la vista con el progreso
+        
+    def show_final_results(self, best_route, best_distance, total_time):
+        # Muestra los resultados finales
+\end{lstlisting}
+
+\section{Capa de Controlador (Controllers)}
+
+El controlador coordina la comunicación entre modelos y vistas.
+
+\subsection{AppController}
+
+El módulo \texttt{app\_controller.py} implementa el controlador principal.
+
+\textbf{Responsabilidades:}
+\begin{itemize}
+    \item Inicialización de componentes
+    \item Gestión del flujo de la aplicación
+    \item Coordinación entre modelo y vista
+    \item Manejo de eventos de usuario
+\end{itemize}
+
+\subsubsection{Flujo de Ejecución del Sistema}
+
+El flujo de ejecución sigue el siguiente patrón:
+
+\begin{enumerate}
+    \item \textbf{Usuario $\rightarrow$ Vista:} El usuario interactúa con la interfaz (por ejemplo, hace clic en "Ejecutar Algoritmo").
+    
+    \item \textbf{Vista $\rightarrow$ Controlador:} La vista envía el evento al controlador mediante una llamada a método.
+    
+    \item \textbf{Controlador $\rightarrow$ Modelo:} El controlador ejecuta el algoritmo genético a través del modelo.
+    
+    \item \textbf{Controlador $\rightarrow$ MPI:} Si está disponible, el controlador distribuye las tareas de evaluación a través de MPI.
+    
+    \item \textbf{Modelo $\rightarrow$ Controlador:} El modelo notifica al controlador con los resultados de cada generación mediante callbacks.
+    
+    \item \textbf{Controlador $\rightarrow$ Vista:} El controlador actualiza la vista con los nuevos resultados.
+    
+    \item \textbf{Vista $\rightarrow$ Usuario:} La vista muestra los resultados actualizados al usuario.
+\end{enumerate}
+
+Este flujo garantiza que la lógica de negocio permanezca separada de la presentación, facilitando el mantenimiento y las pruebas del sistema.
+
+\textbf{Métodos Principales:}
+
+\begin{lstlisting}[caption=Métodos de AppController]
+class AppController:
+    def __init__(self, view):
+        # Inicialización
+        
+    def load_matrix(self, filepath):
+        # Carga matriz de distancias
+        
+    def execute_algorithm(self, params):
+        # Ejecuta el algoritmo genético
+\end{lstlisting}
+
+\section{Utilidades}
+
+\subsection{MatrixLoader}
+
+El módulo \texttt{matrix\_loader.py} proporciona utilidades para cargar y generar matrices de distancias.
+
+\textbf{Funcionalidades:}
+\begin{itemize}
+    \item Carga desde archivo JSON
+    \item Carga desde archivo de texto
+    \item Generación de matrices aleatorias
+    \item Validación de matrices
+\end{itemize}
+
+\section{Configuración}
+
+\subsection{config.py}
+
+El archivo \texttt{config.py} centraliza toda la configuración del sistema.
+
+\textbf{Configuraciones Principales:}
+\begin{itemize}
+    \item Configuración de base de datos
+    \item Configuración de MPI
+    \item Rutas de archivos
+    \item Valores por defecto
+\end{itemize}
+
+\section{Punto de Entrada}
+
+\subsection{main.py}
+
+El archivo \texttt{main.py} es el punto de entrada principal de la aplicación.
+
+\textbf{Flujo Principal:}
+
+\begin{enumerate}
+    \item Detección de MPI y rol (maestro/esclavo)
+    \item Si es esclavo: entrar en bucle de procesamiento
+    \item Si es maestro: inicializar interfaz gráfica
+    \item Crear vista, controlador y conectar componentes
+    \item Ejecutar bucle principal de tkinter
+\end{enumerate}
+
+\begin{lstlisting}[caption=Flujo Principal en main.py]
+if MPI_AVAILABLE and rank != 0:
+    # ESCLAVO: Procesar tareas
+    while True:
+        recibir_tarea()
+        procesar()
+        enviar_resultado()
+else:
+    # MAESTRO: Ejecutar interfaz
+    root = tk.Tk()
+    view = MainWindow(root, None)
+    controller = AppController(view)
+    view.controller = controller
+    root.mainloop()
+\end{lstlisting}
+
+\section{Ejecución del Sistema}
+
+Esta sección proporciona una guía práctica paso a paso para inicializar y ejecutar el sistema.
+
+\subsection{Requisitos Previos}
+
+Antes de inicializar el programa, es necesario verificar que se cumplan los siguientes requisitos:
+
+\begin{enumerate}
+    \item \textbf{Python 3.8 o superior:} Verificar versión con:
+    \begin{lstlisting}[caption=Verificar versión de Python, language=bash]
+python3 --version
+    \end{lstlisting}
+    
+    \item \textbf{OpenMPI (opcional, para modo distribuido):} Verificar instalación con:
+    \begin{lstlisting}[caption=Verificar MPI, language=bash]
+mpirun --version
+    \end{lstlisting}
+    
+    \item \textbf{MySQL (opcional, para guardar resultados):} Solo necesario si se desea persistir los resultados en base de datos.
+\end{enumerate}
+
+\subsection{Instalación de Dependencias}
+
+\subsubsection{Paso 1: Crear Entorno Virtual}
+
+Se recomienda crear un entorno virtual para aislar las dependencias del proyecto:
+
+\begin{lstlisting}[caption=Crear entorno virtual, language=bash]
+# Crear el entorno virtual
+python3 -m venv venv
+
+# Activar el entorno virtual
+# En Linux/Mac:
+source venv/bin/activate
+
+# En Windows:
+# venv\Scripts\activate
+\end{lstlisting}
+
+\subsubsection{Paso 2: Instalar Dependencias Python}
+
+Una vez activado el entorno virtual, instalar las dependencias desde el archivo \texttt{requirements.txt}:
+
+\begin{lstlisting}[caption=Instalar dependencias, language=bash]
+pip install -r requirements.txt
+\end{lstlisting}
+
+Las dependencias principales incluyen:
+\begin{itemize}
+    \item \texttt{numpy}: Operaciones matemáticas y matrices
+    \item \texttt{matplotlib}: Visualización de gráficas
+    \item \texttt{deap}: Framework de algoritmos evolutivos
+    \item \texttt{mpi4py}: Interfaz Python para MPI
+    \item \texttt{mysql-connector-python}: Conector para MySQL (opcional)
+\end{itemize}
+
+\subsubsection{Paso 3: Verificar Instalación}
+
+Verificar que todas las dependencias se instalaron correctamente:
+
+\begin{lstlisting}[caption=Verificar instalación, language=bash]
+python -c "import numpy, matplotlib, deap, mpi4py; print('Dependencias OK')"
+\end{lstlisting}
+
+\subsection{Configuración Inicial}
+
+\subsubsection{Configuración de Base de Datos (Opcional)}
+
+Si se desea usar la funcionalidad de base de datos, editar el archivo \texttt{config/config.py}:
+
+\begin{lstlisting}[caption=Configuración de BD en config/config.py]
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "aguser",
+    "password": "password123",
+    "database": "base_de_datos_replicacion",
+    "port": 3306
+}
+\end{lstlisting}
+
+También se pueden configurar mediante variables de entorno:
+\begin{lstlisting}[caption=Variables de entorno para BD, language=bash]
+export DB_HOST=localhost
+export DB_USER=aguser
+export DB_PASSWORD=password123
+export DB_NAME=base_de_datos_replicacion
+export DB_PORT=3306
+\end{lstlisting}
+
+\subsubsection{Configuración de MPI (Opcional)}
+
+Para ejecución distribuida, crear un archivo \texttt{mpi\_hostfile} con los nodos del cluster:
+
+\begin{lstlisting}[caption=Ejemplo de mpi_hostfile, language=bash]
+# Formato: hostname slots=N
+nodo1 slots=2
+nodo2 slots=2
+nodo3 slots=2
+\end{lstlisting}
+
+\subsection{Inicialización del Programa}
+
+\subsubsection{Modo Local (Sin MPI)}
+
+Para ejecutar el programa en modo local sin computación distribuida:
+
+\textbf{Método 1: Ejecución directa con Python}
+
+\begin{lstlisting}[caption=Ejecución Local Directa, language=bash]
+# Asegurarse de estar en el directorio del proyecto
+cd /ruta/al/proyecto/bueno
+
+# Activar entorno virtual (si se usa)
+source venv/bin/activate
+
+# Ejecutar el programa
+python main.py
+\end{lstlisting}
+
+\textbf{Método 2: Usando el script de ejecución}
+
+\begin{lstlisting}[caption=Ejecución con script, language=bash]
+# Dar permisos de ejecución (solo la primera vez)
+chmod +x run.sh
+
+# Ejecutar el script
+./run.sh
+\end{lstlisting}
+
+El script \texttt{run.sh} automáticamente:
+\begin{itemize}
+    \item Cambia al directorio del proyecto
+    \item Activa el entorno virtual si existe
+    \item Ejecuta \texttt{main.py}
+\end{itemize}
+
+\subsubsection{Modo Distribuido (Con MPI)}
+
+Para ejecutar el programa en modo distribuido con múltiples procesos:
+
+\textbf{Método 1: Ejecución local con múltiples procesos}
+
+\begin{lstlisting}[caption=MPI Local con 4 procesos, language=bash]
+# Ejecutar con 4 procesos (1 maestro + 3 esclavos)
+mpirun -np 4 python main.py
+\end{lstlisting}
+
+\textbf{Método 2: Ejecución en cluster con hostfile}
+
+\begin{lstlisting}[caption=MPI con hostfile, language=bash]
+# Ejecutar usando nodos definidos en hostfile
+mpirun --hostfile mpi_hostfile -np 8 python main.py
+\end{lstlisting}
+
+\textbf{Método 3: Usando el script de ejecución MPI}
+
+\begin{lstlisting}[caption=Ejecución con script MPI, language=bash]
+# Dar permisos de ejecución (solo la primera vez)
+chmod +x run_mpi.sh
+
+# Ejecutar con número de procesos por defecto (4)
+./run_mpi.sh
+
+# Ejecutar con número de procesos personalizado
+./run_mpi.sh 8
+\end{lstlisting}
+
+\subsection{Flujo de Inicialización}
+
+El programa sigue el siguiente flujo al inicializarse:
+
+\begin{enumerate}
+    \item \textbf{Detección de MPI:} El programa intenta importar \texttt{mpi4py} y detecta si está disponible.
+    
+    \item \textbf{Identificación de Rol:}
+    \begin{itemize}
+        \item Si MPI está disponible y el rank es 0: se ejecuta como \textbf{maestro}
+        \item Si MPI está disponible y el rank es diferente de 0: se ejecuta como \textbf{esclavo}
+        \item Si MPI no está disponible: se ejecuta en \textbf{modo local}
+    \end{itemize}
+    
+    \item \textbf{Proceso Esclavo (si aplica):}
+    \begin{itemize}
+        \item Entra en un bucle de espera de mensajes
+        \item Recibe la matriz de distancias del maestro
+        \item Procesa tareas de evaluación de individuos
+        \item Envía resultados de vuelta al maestro
+        \item Termina cuando recibe señal de terminación
+    \end{itemize}
+    
+    \item \textbf{Proceso Maestro:}
+    \begin{itemize}
+        \item Inicializa la interfaz gráfica (tkinter)
+        \item Crea la vista (\texttt{MainWindow})
+        \item Crea el controlador (\texttt{AppController})
+        \item Conecta la vista con el controlador
+        \item Inicia el bucle principal de la interfaz gráfica
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Verificación de Inicialización Correcta}
+
+Al iniciar el programa, se deben ver mensajes en la consola indicando el estado:
+
+\textbf{Modo Local:}
+\begin{lstlisting}[caption=Salida esperada en modo local]
+[MAESTRO] Iniciando aplicación en modo local...
+[INFO] Matriz cargada: 17 ciudades
+\end{lstlisting}
+
+\textbf{Modo Distribuido:}
+\begin{lstlisting}[caption=Salida esperada en modo distribuido]
+[MAESTRO Rank 0] Iniciando aplicación con 3 esclavos...
+[ESCLAVO Rank 1] Iniciando proceso esclavo...
+[ESCLAVO Rank 2] Iniciando proceso esclavo...
+[ESCLAVO Rank 3] Iniciando proceso esclavo...
+[ESCLAVO Rank 1] Esperando mensajes del maestro...
+[ESCLAVO Rank 2] Esperando mensajes del maestro...
+[ESCLAVO Rank 3] Esperando mensajes del maestro...
+[INFO] Matriz cargada: 17 ciudades
+\end{lstlisting}
+
+\subsection{Solución de Problemas Comunes}
+
+\begin{itemize}
+    \item \textbf{Error: "No module named 'mpi4py'":} 
+    \begin{itemize}
+        \item Instalar MPI: \texttt{sudo apt-get install openmpi-bin libopenmpi-dev} (Linux)
+        \item Instalar mpi4py: \texttt{pip install mpi4py}
+    \end{itemize}
+    
+    \item \textbf{Error: "No module named 'tkinter'":}
+    \begin{itemize}
+        \item Instalar tkinter: \texttt{sudo apt-get install python3-tk} (Linux)
+    \end{itemize}
+    
+    \item \textbf{Error: "Cannot connect to database":}
+    \begin{itemize}
+        \item Verificar configuración en \texttt{config/config.py}
+        \item Verificar que MySQL esté ejecutándose
+        \item El programa funcionará sin base de datos, solo no guardará resultados
+    \end{itemize}
+    
+    \item \textbf{Error: "Permission denied" en scripts:}
+    \begin{itemize}
+        \item Dar permisos: \texttt{chmod +x run.sh run\_mpi.sh}
+    \end{itemize}
+\end{itemize}
+
+\section{Ventajas de la Arquitectura MVC}
+
+\begin{enumerate}
+    \item \textbf{Separación de Responsabilidades:} Cada componente tiene una función clara
+    \item \textbf{Modularidad:} Fácil de mantener y extender
+    \item \textbf{Testabilidad:} Cada componente se puede probar independientemente
+    \item \textbf{Reutilización:} Los modelos pueden usarse en diferentes vistas
+    \item \textbf{Escalabilidad:} Fácil agregar nuevas funcionalidades
+\end{enumerate}
+
+\section{Conclusión}
+
+Este sistema implementa una arquitectura MVC limpia y bien estructurada para resolver el problema TSP usando algoritmos genéticos distribuidos. La separación clara de responsabilidades facilita el mantenimiento, la extensión y la comprensión del código.
+
+\newpage
+
+\section{Referencias}
+
+\begin{enumerate}
+    \item DEAP - Distributed Evolutionary Algorithms in Python
+    \item MPI for Python (mpi4py) Documentation
+    \item Pattern: Model-View-Controller (MVC)
+    \item Tkinter Documentation
+    \item MySQL Connector/Python Documentation
+\end{enumerate}
+
+\end{document}
+
+

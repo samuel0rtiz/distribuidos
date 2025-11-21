@@ -46,13 +46,22 @@ class MPIHandler:
         if not self.is_master() or not MPI_AVAILABLE:
             return
         
-        print(f"[MAESTRO] Enviando matriz de distancias a {self.size - 1} esclavos...")
+        print(f"[MAESTRO] ===== ENVIANDO MATRIZ A ESCLAVOS =====")
+        print(f"[MAESTRO] Tamaño de matriz: {len(dist_matrix)}x{len(dist_matrix)}")
+        print(f"[MAESTRO] Enviando a {self.size - 1} esclavos (ranks 1-{self.size-1})...")
+        import sys
+        sys.stdout.flush()
+        
         for slave_rank in range(1, self.size):
             try:
                 self.comm.send(dist_matrix, dest=slave_rank, tag=100)
-                print(f"[MAESTRO] Matriz enviada a esclavo {slave_rank}")
+                print(f"[MAESTRO] ✓ Matriz enviada a esclavo {slave_rank}/{self.size-1}")
+                sys.stdout.flush()
             except Exception as e:
-                print(f"[MAESTRO] Error enviando matriz a esclavo {slave_rank}: {e}")
+                print(f"[MAESTRO] ✗ Error enviando matriz a esclavo {slave_rank}: {e}")
+                import traceback
+                traceback.print_exc()
+                sys.stdout.flush()
     
     def create_mpi_map(self, dist_matrix):
         """
@@ -95,11 +104,17 @@ class MPIHandler:
                 workers_busy = set()
                 
                 # Enviar tareas iniciales a todos los esclavos
+                print(f"[MAESTRO] Distribuyendo {len(tasks)} tareas entre {min(self.size-1, len(tasks))} esclavos...")
+                import sys
+                sys.stdout.flush()
+                
                 for worker_rank in range(1, min(self.size, len(tasks) + 1)):
                     if task_index < len(tasks):
                         task = list(tasks[task_index]) if hasattr(tasks[task_index], '__iter__') and not isinstance(tasks[task_index], (str, bytes)) else tasks[task_index]
                         comm.send((task_index, task), dest=worker_rank, tag=1)
                         workers_busy.add(worker_rank)
+                        print(f"[MAESTRO] Tarea {task_index} enviada a esclavo {worker_rank}")
+                        sys.stdout.flush()
                         task_index += 1
                 
                 # Recibir resultados y enviar nuevas tareas

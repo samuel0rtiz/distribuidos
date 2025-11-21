@@ -9,48 +9,16 @@ import subprocess
 
 def check_and_relaunch_with_mpi():
     """
-    Verifica si debe ejecutarse con MPI y relanza automáticamente.
-    Busca archivos de configuración: hosts, mpi_hostfile, hostfile
+    Verifica si existe el archivo hosts y relanza automáticamente con MPI.
     """
-    # Buscar archivos de configuración de cluster (prioridad: hosts)
-    hostfile_candidates = ["hosts", "mpi_hostfile", "hostfile", "mpi_hostfile_local"]
-    hostfile_path = None
-    
-    for candidate in hostfile_candidates:
-        if os.path.exists(candidate):
-            hostfile_path = candidate
-            break
-    
-    if not hostfile_path:
-        # No hay configuración de cluster, ejecutar en modo local
+    if not os.path.exists("hosts"):
+        # No hay archivo hosts, ejecutar en modo local
         return False
     
-    # Leer configuración del hostfile para determinar número de procesos
+    # Relanzar con mpirun usando el comando exacto especificado
     try:
-        total_slots = 0
-        with open(hostfile_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    parts = line.split()
-                    if len(parts) >= 2:
-                        # Formato: hostname slots=N
-                        slots_str = parts[1].split('=')[1] if '=' in parts[1] else parts[1]
-                        total_slots += int(slots_str)
-                    elif len(parts) == 1:
-                        # Formato simple: solo hostname (asume 1 slot)
-                        total_slots += 1
-        
-        if total_slots == 0:
-            # No se pudo determinar, usar valor por defecto 20
-            total_slots = 20
-        
-        # Relanzar con mpirun
-        print(f"[INFO] Detectado archivo de configuración: {hostfile_path}")
-        print(f"[INFO] Relanzando con MPI: {total_slots} procesos")
-        
         script_path = os.path.abspath(__file__)
-        cmd = ["mpirun", "-np", str(total_slots), "--hostfile", hostfile_path, 
+        cmd = ["mpirun", "-np", "20", "--hostfile", "hosts", 
                sys.executable, script_path] + sys.argv[1:]
         
         # Ejecutar y esperar
@@ -83,11 +51,19 @@ if __name__ == "__main__":
 # Si somos esclavo, no importar tkinter
 if MPI_AVAILABLE and rank != 0:
     # ESCLAVO: Entrar en bucle de procesamiento
-    print(f"[ESCLAVO Rank {rank}] Iniciando proceso esclavo...")
+    import sys
+    sys.stdout.flush()  # Asegurar que los mensajes se muestren inmediatamente
+    print(f"[ESCLAVO Rank {rank}/{size-1}] ===== INICIANDO PROCESO ESCLAVO =====")
+    print(f"[ESCLAVO Rank {rank}] Total de procesos MPI: {size}")
+    print(f"[ESCLAVO Rank {rank}] Proceso esclavo activo y listo para recibir trabajo")
+    sys.stdout.flush()
     
     try:
         from models.mpi_handler import MPIHandler
         mpi_handler = MPIHandler()
+        
+        print(f"[ESCLAVO Rank {rank}] MPIHandler inicializado correctamente")
+        sys.stdout.flush()
         
         # Variable para almacenar la matriz de distancias
         dist_matrix = None
@@ -103,7 +79,9 @@ if MPI_AVAILABLE and rank != 0:
             return distance,
         
         # Bucle principal de esclavo
-        print(f"[ESCLAVO Rank {rank}] Esperando mensajes del maestro...")
+        print(f"[ESCLAVO Rank {rank}] Entrando en bucle de espera de mensajes del maestro...")
+        print(f"[ESCLAVO Rank {rank}] Esperando mensajes (tag 100: matriz, tag 1: tareas, tag 99: terminación)")
+        sys.stdout.flush()
         task_count = 0
         
         while True:
@@ -119,7 +97,8 @@ if MPI_AVAILABLE and rank != 0:
                 elif tag_received == 100:
                     # Matriz de distancias
                     dist_matrix = message
-                    print(f"[ESCLAVO Rank {rank}] Matriz recibida: {len(dist_matrix)}x{len(dist_matrix)}")
+                    print(f"[ESCLAVO Rank {rank}] ✓ Matriz recibida: {len(dist_matrix)}x{len(dist_matrix)}")
+                    sys.stdout.flush()
                     continue
                 elif tag_received == 1:
                     # Tarea
@@ -127,23 +106,37 @@ if MPI_AVAILABLE and rank != 0:
                         task_idx, task = message
                         if task_idx == -1 and task is None:
                             # Fin de lote - continuar esperando siguiente ejecución
-                            print(f"[ESCLAVO Rank {rank}] Fin de lote, esperando siguiente ejecución...")
+                            print(f"[ESCLAVO Rank {rank}] Fin de lote recibido. Total tareas procesadas: {task_count}. Esperando siguiente ejecución...")
+                            sys.stdout.flush()
+                            task_count = 0  # Resetear contador para siguiente ejecución
                             continue
                         
                         if dist_matrix is None:
+                            print(f"[ESCLAVO Rank {rank}] ⚠ ADVERTENCIA: Recibida tarea pero matriz no disponible")
                             comm.send((task_idx, (float('inf'),)), dest=0, tag=2)
+                            sys.stdout.flush()
                             continue
                         
                         # Procesar tarea
+                        print(f"[ESCLAVO Rank {rank}] Procesando tarea {task_idx}...")
+                        sys.stdout.flush()
                         result = eval_tsp_local(task)
                         comm.send((task_idx, result), dest=0, tag=2)
                         task_count += 1
+                        if task_count % 10 == 0:  # Mostrar cada 10 tareas
+                            print(f"[ESCLAVO Rank {rank}] Procesadas {task_count} tareas hasta ahora...")
+                            sys.stdout.flush()
             
             except Exception as e:
-                print(f"[ESCLAVO Rank {rank}] Error: {e}")
+                import traceback
+                print(f"[ESCLAVO Rank {rank}] ✗ ERROR en bucle principal: {e}")
+                traceback.print_exc()
+                sys.stdout.flush()
                 break
         
-        print(f"[ESCLAVO Rank {rank}] Procesadas {task_count} tareas, finalizando...")
+        print(f"[ESCLAVO Rank {rank}] ===== FINALIZANDO PROCESO ESCLAVO =====")
+        print(f"[ESCLAVO Rank {rank}] Total de tareas procesadas: {task_count}")
+        sys.stdout.flush()
     
     except KeyboardInterrupt:
         print(f"[ESCLAVO Rank {rank}] Interrumpido por el usuario")
@@ -160,7 +153,12 @@ else:
     
     if __name__ == "__main__":
         if MPI_AVAILABLE:
-            print(f"[MAESTRO Rank {rank}] Iniciando aplicación con {size - 1} esclavos...")
+            print(f"[MAESTRO Rank {rank}] ===== INICIANDO APLICACIÓN =====")
+            print(f"[MAESTRO Rank {rank}] Total de procesos MPI: {size}")
+            print(f"[MAESTRO Rank {rank}] Número de esclavos: {size - 1}")
+            print(f"[MAESTRO Rank {rank}] Esperando a que los esclavos se inicialicen...")
+            import time
+            time.sleep(1)  # Dar tiempo a que los esclavos muestren sus mensajes
         else:
             print("[MAESTRO] Iniciando aplicación en modo local...")
         

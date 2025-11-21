@@ -98,3 +98,4 @@ echo "=== Configuración completada ==="
 echo "Para ejecutar el sistema, desde el nodo maestro ejecuta:"
 echo "  python3 main.py"
 
+

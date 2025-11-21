@@ -167,3 +167,4 @@ done
 3. Si los esclavos no muestran mensajes, verifica los pasos 1-5 arriba
 4. Si los esclavos muestran mensajes pero no procesan, verifica el problema 3 o 4
 
+

@@ -143,18 +143,12 @@ class AppController:
             params: Diccionario con parámetros del algoritmo
         """
         try:
-            # Obtener configuración de cluster
+            # Obtener configuración de cluster (solo informativo, no generar hostfile)
             num_nodes = params.get('num_nodes', 1)
             cores_per_node = params.get('cores_per_node', 4)
             
-            # Generar hostfile si se especificó configuración de cluster
-            if num_nodes > 1 or cores_per_node > 1:
-                hostfile_path = self.configure_cluster(num_nodes, cores_per_node, use_localhost=True)
-                if hostfile_path:
-                    total_processes = num_nodes * cores_per_node
-                    print(f"[INFO] Hostfile generado para {num_nodes} nodos x {cores_per_node} núcleos = {total_processes} procesos")
-                    print(f"[INFO] Para ejecutar con esta configuración, use:")
-                    print(f"      mpirun --hostfile {hostfile_path} -np {total_processes} python main.py")
+            # NO generar hostfile - usar el archivo 'hosts' existente
+            # El sistema usa automáticamente el archivo 'hosts' en /clusterdir/distribuidos/
             
             # Verificar que tenemos una matriz
             if self.dist_matrix is None:

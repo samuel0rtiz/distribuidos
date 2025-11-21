@@ -10,15 +10,31 @@ import subprocess
 def check_and_relaunch_with_mpi():
     """
     Verifica si existe el archivo hosts y relanza automáticamente con MPI.
+    Busca el archivo hosts en el directorio actual o en /clusterdir/distribuidos/
     """
-    if not os.path.exists("hosts"):
+    # Buscar archivo hosts en posibles ubicaciones
+    hosts_path = None
+    possible_paths = [
+        "hosts",  # Directorio actual
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "hosts"),  # Mismo directorio que main.py
+        "/clusterdir/distribuidos/hosts"  # Ruta específica del cluster
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            hosts_path = path
+            break
+    
+    if not hosts_path:
         # No hay archivo hosts, ejecutar en modo local
         return False
     
     # Relanzar con mpirun usando el comando exacto especificado
     try:
         script_path = os.path.abspath(__file__)
-        cmd = ["mpirun", "-np", "20", "--hostfile", "hosts", 
+        # Usar ruta absoluta del archivo hosts
+        hosts_abs_path = os.path.abspath(hosts_path)
+        cmd = ["mpirun", "-np", "20", "--hostfile", hosts_abs_path, 
                sys.executable, script_path] + sys.argv[1:]
         
         # Ejecutar y esperar

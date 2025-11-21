@@ -183,3 +183,4 @@ mpirun --hostfile hosts -np 20 python3 --version
 4. ✅ Tener el código del proyecto en la misma ruta
 5. ✅ **NO ejecutar nada manualmente** - `mpirun` lo hace automáticamente
 
+

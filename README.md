@@ -48,17 +48,36 @@ pip install -r requirements.txt
 
 ### Modo Local (sin MPI):
 ```bash
-python main.py
+python3 main.py
 ```
 
-### Modo Distribuido (con MPI):
+### Modo Distribuido (con MPI) - Automático:
+El sistema detecta automáticamente el archivo `hosts` y se relanza con MPI:
 ```bash
-# Ejecutar con 4 procesos (1 maestro + 3 esclavos)
-mpirun -np 4 python main.py
-
-# Ejecutar con hostfile
-mpirun --hostfile mpi_hostfile -np 4 python main.py
+python3 main.py
 ```
+
+Esto ejecutará automáticamente:
+```bash
+mpirun -np 20 --hostfile hosts python3 main.py
+```
+
+### Configuración del Cluster
+
+**IMPORTANTE**: Para ejecutar con esclavos remotos, ver la guía completa en [CLUSTER_SETUP.md](CLUSTER_SETUP.md)
+
+**Resumen rápido:**
+1. **En el nodo maestro**: Solo ejecuta `python3 main.py`
+2. **En los nodos esclavos**: NO necesitas ejecutar nada manualmente
+3. **Requisitos**:
+   - SSH sin contraseña configurado desde el maestro a los esclavos
+   - Código disponible en la misma ruta en todos los nodos
+   - OpenMPI y Python instalados en todos los nodos
+   - Dependencias Python instaladas en todos los nodos
+
+**Scripts de ayuda:**
+- `./setup_cluster.sh` - Configura y copia código a los nodos
+- `./test_cluster.sh` - Prueba la configuración del cluster
 
 ## Uso
 

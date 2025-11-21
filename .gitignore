@@ -38,6 +38,7 @@ env/
 *.out
 *.toc
 *.pdf
+*.synctex.gz
 
 # OS
 .DS_Store
